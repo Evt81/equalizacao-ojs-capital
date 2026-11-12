@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel de Equalização dos OJs</title>
+<style>
+:root{
+  --navy:#0A4369; --gold:#FECC17; --green:#0E7C60; --slate:#4A6487;
+  --bg:#F4F6F9; --surface:#FFFFFF; --ink:#1B2433; --ink2:#4A5568; --muted:#7A8599; --line:#E2E6EE; --grid:#EEF1F5;
+  --s-atual:#8691AB; --s-ice:#1F6FB2; --s-isp:#C2417A; --s-b:#C99700; --s-vol:#0E7C60;
+  --over:#B5541C; --under:#1F6FB2; --band:rgba(14,124,96,.10);
+  --ok:#0E7C60; --part:#9A6B00; --no:#B5541C;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0E1622; --surface:#152132; --ink:#E8EDF5; --ink2:#B5C0D0; --muted:#8C99AD; --line:#26364C; --grid:#1D2B3E;
+  --s-atual:#8A8A80; --s-ice:#3F8FE0; --s-isp:#D46A9A; --s-b:#E0B331; --s-vol:#3FB08E; --over:#E07B45; --under:#5AA2E0; --band:rgba(63,176,142,.14);
+  --ok:#3FB08E; --part:#E0B331; --no:#E07B45; }}
+:root[data-theme="dark"]{
+  --bg:#0E1622; --surface:#152132; --ink:#E8EDF5; --ink2:#B5C0D0; --muted:#8C99AD; --line:#26364C; --grid:#1D2B3E;
+  --s-atual:#8A8A80; --s-ice:#3F8FE0; --s-isp:#D46A9A; --s-b:#E0B331; --s-vol:#3FB08E; --over:#E07B45; --under:#5AA2E0; --band:rgba(63,176,142,.14);
+  --ok:#3FB08E; --part:#E0B331; --no:#E07B45; }
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 "Segoe UI",Arial,sans-serif}
+header{background:var(--navy);color:#fff;padding:18px 24px;border-bottom:4px solid var(--gold)}
+header h1{margin:0;font-size:20px;font-weight:600}
+header p{margin:4px 0 0;color:#C9D6E6;font-size:13px}
+main{max-width:1200px;margin:0 auto;padding:16px}
+.controls{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:end;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+.ctl label{display:block;font-size:12px;color:var(--ink2);margin-bottom:4px}
+.ctl output{font-weight:600;color:var(--ink)}
+.ctl input[type=range]{width:170px;accent-color:var(--navy)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:transparent;color:var(--ink2);padding:6px 10px;font:inherit;cursor:pointer}
+.seg button.on{background:var(--navy);color:#fff}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:14px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.kpi .l{font-size:12px;color:var(--ink2)}
+.kpi .v{font-size:26px;font-weight:600;margin-top:2px}
+.kpi .s{font-size:12px;color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+.card h2{font-size:15px;margin:0 0 2px;color:var(--ink)}
+.card .sub{font-size:12.5px;color:var(--ink2);margin:0 0 10px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:900px){.grid2{grid-template-columns:1fr}}
+svg{display:block;width:100%;height:auto;forced-color-adjust:none}
+.legend i,.tag{forced-color-adjust:none}
+svg text{fill:var(--ink2);font:11.5px "Segoe UI",Arial,sans-serif}
+svg .lbl{fill:var(--ink)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--ink2);margin:4px 0 8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--ink2);font-weight:600;background:var(--bg)}
+td.pos{color:var(--over);font-weight:600} td.neg{color:var(--under);font-weight:600}
+.tag{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11.5px;font-weight:600;border:1px solid currentColor}
+.tag.ok{color:var(--ok)} .tag.part{color:var(--part)} .tag.no{color:var(--no)}
+#tip{position:fixed;pointer-events:none;background:var(--surface);color:var(--ink);border:1px solid var(--line);box-shadow:0 4px 14px rgba(0,0,0,.15);border-radius:8px;padding:8px 10px;font-size:12px;display:none;z-index:9;max-width:260px}
+.note{font-size:12px;color:var(--muted)}
+.mbar{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--mc,var(--s-ice));border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:var(--ink2)}
+.mbar b{color:var(--ink)}
+td.wrap{white-space:normal;text-align:left;min-width:220px}
+.hit{fill:transparent;cursor:default}
+</style>
+</head>
+<body>
+<header>
+  <h1>Equalização da força de trabalho dos Oficiais de Justiça (Capital)</h1>
+  <p>Painel de simulação do Índice de Carga Equalizada (ICE), com dois modelos para o índice de violência: A (notas dos OJs, padrão) e B (ISP-RJ). Cenário de lotação: 113 OJs territoriais hoje, 2 aposentadorias sem reposição e incorporação dos 6 arrecadadores (área-teste na Barra e transferência dos demais em 2027). Dados: mandados distribuídos de janeiro a outubro de 2026 (planilha "Tabela para seleção de OJs"). OJs anonimizados.</p>
+</header>
+<main>
+<div class="controls">
+  <div class="ctl"><label>Modelo do índice de violência (V)</label><div class="seg" id="model"><button data-v="A" class="on">A · Notas dos OJs (padrão)</button><button data-v="B">B · ISP-RJ</button></div></div>
+  <div class="ctl"><label>Cenário de lotação</label><div class="seg" id="cen"><button data-v="117" class="on">117 · com arrecadadores</button><button data-v="112">112 · contingência</button></div></div>
+  <div class="ctl"><label>Peso territorial máx. (w<sub>T</sub>): <output id="oT"></output></label><input id="wT" type="range" min="0" max="40" step="5" value="25"></div>
+  <div class="ctl"><label>Peso máx. do FEV — exposição à violência (w<sub>V</sub>): <output id="oR"></output></label><input id="wR" type="range" min="0" max="30" step="5" value="20"></div>
+  <div class="ctl"><label>Faixa de equilíbrio (±): <output id="oB"></output></label><input id="band" type="range" min="0" max="20" step="1" value="10"></div>
+  <div class="ctl"><label>Regra de estabilidade</label><div class="seg" id="stab"><button data-v="1" class="on">Ligada</button><button data-v="0">Desligada</button></div></div>
+  <div class="ctl"><label>Tema</label><div class="seg" id="theme"><button data-v="auto" class="on">Auto</button><button data-v="light">Claro</button><button data-v="dark">Escuro</button></div></div>
+</div>
+
+<div class="mbar" id="mbar"></div>
+<div class="kpis" id="kpis"></div>
+
+<div class="card">
+  <h2 id="h1"></h2>
+  <p class="sub">Carga ajustada (ICE) por OJ de cada área, comparada à média da Capital. A faixa verde é a zona de equilíbrio; fora dela a área está sobrecarregada (direita) ou com folga (esquerda).</p>
+  <div class="legend" id="lg1"></div>
+  <div id="c1"></div>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <h2>Número de OJs por área segundo cada critério</h2>
+    <p class="sub">Comparação entre a lotação atual, a meta do ICE no modelo selecionado (com os pesos escolhidos acima), o quadro da Proposta B (60/25/15) e o critério só de volume.</p>
+    <div class="legend" id="lg2"></div>
+    <div id="c2"></div>
+  </div>
+  <div class="card">
+    <h2>Mandados por mês de cada OJ, por área</h2>
+    <p class="sub">Cada ponto é um OJ (sem identificação). O traço vertical é a média da área. Mostra a dispersão interna, que se corrige com o rezoneamento das subáreas, sem mover pessoas.</p>
+    <div class="legend"><span><i style="background:var(--s-ice);border-radius:50%"></i>OJ (mandados/mês, jan–out/2026)</span><span><i style="background:var(--ink)"></i>Média da área</span></div>
+    <div id="c3"></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Comparação entre os modelos A e B</h2>
+  <p class="sub">Estes gráficos mostram os dois modelos ao mesmo tempo, com os pesos escolhidos acima. Modelo A em azul, Modelo B em rosa.</p>
+  <div class="grid2">
+    <div><h2 style="font-size:13.5px">Posição de cada área no índice de violência</h2>
+      <p class="sub">0 = área menos violenta, 100 = mais violenta no índice do modelo. É essa posição que define o FEV.</p>
+      <div class="legend"><span><i style="background:var(--s-ice);border-radius:50%"></i>Modelo A · notas dos OJs</span><span><i style="background:var(--s-isp);border-radius:50%"></i>Modelo B · ISP-RJ</span></div>
+      <div id="c4"></div></div>
+    <div><h2 style="font-size:13.5px">Lotação: atual e meta de cada modelo</h2>
+      <p class="sub">Número de OJs por área. O rótulo indica a diferença da meta B em relação à meta A.</p>
+      <div class="legend"><span><i style="background:var(--s-atual)"></i>Atual</span><span><i style="background:var(--s-ice)"></i>Meta Modelo A</span><span><i style="background:var(--s-isp)"></i>Meta Modelo B</span></div>
+      <div id="c5"></div></div>
+  </div>
+  <div class="tw"><table id="tc"></table></div>
+  <p class="note" id="cc"></p>
+</div>
+
+<div class="card">
+  <h2 id="hd">Em mandados reais: quanto cada OJ recebe</h2>
+  <p class="sub">O ICE mede a carga em mandados-equivalentes: cada mandado é multiplicado pelo peso do deslocamento e da violência da área. A proposta não fixa cota; cada OJ recebe os mandados do seu território, divididos entre os colegas da área. "Referência" é quantos mandados por mês, naquela área, equivalem à carga média da Capital. A meta fica próxima dela; a diferença vem do número inteiro de OJs e da regra de estabilidade.</p>
+  <div class="tw"><table id="td"></table></div>
+  <p class="note">Média mensal de mandados distribuídos em jan–out/2026, sem os de arrecadação (cerca de 1% a mais quando distribuídos por território).</p>
+</div>
+
+<div class="card">
+  <h2 id="h3">Quadro de cálculo por área</h2>
+  <p class="sub">D = √(km² ÷ mandados/mês): estimativa do deslocamento médio por mandado. FT é o fator territorial e FEV o Fator de Exposição à Violência. ICE = mandados/mês × FT × FEV.</p>
+  <div class="tw"><table id="tb"></table></div>
+  <p class="note" id="mv"></p>
+</div>
+
+<div class="card">
+  <h2>Anexo · Dados do ISP-RJ por área (base do Modelo B)</h2>
+  <p class="sub" id="isub"></p>
+  <div class="tw"><table id="ti"></table></div>
+  <p class="note">Taxas por 100 mil habitantes. Roubos de rua = roubo a transeunte, de celular e em coletivo. MIP = mortes por intervenção de agente do Estado, usada provisoriamente no lugar dos tiroteios do Instituto Fogo Cruzado. A correspondência entre delegacias (CISP) e áreas dos OJs é aproximada e deve ser validada pela comissão. A 28ª DP (Campinho) foi dividida meio a meio entre Leopoldina e Jacarepaguá.</p>
+</div>
+
+<div class="card">
+  <h2>Avaliação das propostas apresentadas pelos OJs</h2>
+  <p class="sub">Síntese da análise. A fundamentação completa está no documento em PDF.</p>
+  <div class="tw"><table id="tp"></table></div>
+</div>
+<p class="note">FEV (Fator de Exposição à Violência). Modelo A (padrão): notas de violência atribuídas pelos OJs no Documento B. Modelo B (alternativo): índice objetivo do ISP-RJ (letalidade violenta 40%, roubos de rua 30%, mortes por intervenção de agente do Estado 30%; média das taxas por habitante e por km²). Peso padrão de 20%; recalibrar após 6 meses com o tempo medido por mandado (teto de 30%). O modelo definitivo é o que melhor explicar o tempo de cumprimento. Extensão territorial conforme a tabela apresentada pelos OJs (IPP/DATA.RIO). NUPEP (6) fica fora do cálculo territorial. Os 6 OJs da Arrecadação passam às áreas: 1 na área-teste da Barra (Fase 1, 112 OJs) e 5 em 2027, se o teste for aprovado (117 OJs). Sem a transferência, vale a meta de contingência (112). Supõe-se que os mandados de arrecadação, distribuídos por território, seguem a proporção do volume atual.</p>
+</main>
+<div id="tip"></div>
+<script>
+const DATA = {"areas": {"Centro": {"n": 17, "tot": 18375.0, "mes": 1837.5, "km2": 15, "risco": 60, "riscoIsp": 71.2, "terrB": 40, "propB": 15, "prazo": 17.2482, "ojs": [307.5, 197.0, 157.5, 130.0, 118.5, 116.3, 90.4, 87.2, 82.7, 75.5, 74.5, 74.1, 73.0, 71.9, 67.1, 64.9, 49.4], "sub": {"Centro": 17}}, "Leopoldina": {"n": 18, "tot": 15646.0, "mes": 1564.6, "km2": 130, "risco": 80, "riscoIsp": 75.1, "terrB": 60, "propB": 15, "prazo": 28.947, "ojs": [137.9, 135.9, 100.6, 96.2, 96.0, 94.9, 92.0, 90.8, 83.2, 82.8, 82.6, 80.4, 79.3, 75.5, 65.8, 60.5, 59.1, 51.1], "sub": {"Leopoldina": 18}}, "Norte/Tijuca": {"n": 18, "tot": 16114.0, "mes": 1611.4, "km2": 60, "risco": 60, "riscoIsp": 28.7, "terrB": 60, "propB": 15, "prazo": 20.4694, "ojs": [146.0, 121.5, 119.1, 109.1, 108.1, 95.4, 94.7, 92.3, 90.9, 86.5, 83.7, 78.5, 77.9, 75.4, 75.0, 71.2, 69.5, 16.6], "sub": {"Tijuca": 9, "Zona Norte": 9}}, "Zona Sul": {"n": 15, "tot": 11126.0, "mes": 1112.6, "km2": 45, "risco": 40, "riscoIsp": 7.5, "terrB": 40, "propB": 10, "prazo": 24.9078, "ojs": [125.0, 91.4, 85.2, 84.2, 82.9, 82.6, 82.2, 72.0, 69.9, 69.8, 69.5, 68.0, 58.1, 46.1, 25.7], "sub": {"Zona Sul": 15}}, "Barra": {"n": 12, "tot": 15019.0, "mes": 1501.9, "km2": 120, "risco": 40, "riscoIsp": 18.7, "terrB": 80, "propB": 15, "prazo": 18.1996, "ojs": [176.4, 157.3, 156.2, 146.1, 142.9, 113.7, 113.1, 108.9, 104.4, 99.8, 97.2, 85.9], "sub": {"Barra": 12}}, "Recreio": {"n": 6, "tot": 6844.0, "mes": 684.4, "km2": 92, "risco": 60, "riscoIsp": 28.8, "terrB": 100, "propB": 10, "prazo": 29.162, "ojs": [169.2, 125.4, 118.8, 100.2, 92.4, 78.4], "sub": {"Recreio": 6}}, "Jacarepaguá": {"n": 8, "tot": 8499.0, "mes": 849.9, "km2": 130, "risco": 100, "riscoIsp": 43.5, "terrB": 100, "propB": 12, "prazo": 37.1105, "ojs": [163.6, 144.6, 99.8, 96.3, 92.9, 86.6, 86.2, 79.9], "sub": {"Jacarepaguá": 8}}, "Zona Oeste": {"n": 16, "tot": 13960.0, "mes": 1396.0, "km2": 652, "risco": 100, "riscoIsp": 10.4, "terrB": 100, "propB": 16, "prazo": 23.7405, "ojs": [128.6, 123.6, 113.0, 102.8, 101.6, 98.7, 93.0, 85.0, 85.0, 78.4, 75.9, 75.2, 69.7, 62.7, 62.6, 40.2], "sub": {"Zona Oeste": 16}}, "Ilha": {"n": 3, "tot": 2652.0, "mes": 265.2, "km2": 42, "risco": 80, "riscoIsp": 15.7, "terrB": 80, "propB": 5, "prazo": 36.2413, "ojs": [100.4, 89.4, 75.4], "sub": {"Ilha": 3}}}, "ordem": ["Centro", "Leopoldina", "Norte/Tijuca", "Zona Sul", "Barra", "Recreio", "Jacarepaguá", "Zona Oeste", "Ilha"], "outros": {"NUPEP": {"n": 6, "mes": 211.5}, "Arrecadação": {"n": 6, "mes": 103.6}}, "isp": {"periodo": "2025/10 a 2026/09", "pop_ref": "2022/07", "areas": {"Centro": {"pop": 119849.82978100001, "letalidade_violenta": 34.209477038823294, "roubo_rua": 3433.4633662136066, "hom_por_interv_policial": 8.343774887517878, "V": 83.88309139698518, "V_km2": 58.5879292565575, "V_mix": 71.23551032677133, "cisps": "1ª Praça Mauá, 4ª Praça da República, 5ª Mem de Sá, 7ª Santa Teresa"}, "Norte/Tijuca": {"pop": 1037035.50078, "letalidade_violenta": 12.439304141755361, "roubo_rua": 721.479640221811, "hom_por_interv_policial": 3.4714337139782407, "V": 21.238510328697345, "V_km2": 36.2392403857512, "V_mix": 28.738875357224273, "cisps": "6ª Cidade Nova, 17ª São Cristóvão, 18ª Praça da Bandeira, 19ª Tijuca, 20ª Vila Isabel, 23ª Méier, 24ª Piedade, 25ª Engenho Novo, 26ª Todos os Santos"}, "Leopoldina": {"pop": 1960437.18045, "letalidade_violenta": 34.25256400441577, "roubo_rua": 546.1026809103129, "hom_por_interv_policial": 14.155005973529969, "V": 71.43643912855427, "V_km2": 78.77935311464569, "V_mix": 75.10789612159998, "cisps": "21ª Bonsucesso, 22ª Penha, 27ª Vicente de Carvalho, 28ª Campinho (½), 29ª Madureira, 30ª Marechal Hermes, 31ª Ricardo de Albuquerque, 38ª Irajá, 39ª Pavuna, 40ª Honório Gurgel, 44ª Inhaúma"}, "Zona Sul": {"pop": 683703.28996, "letalidade_violenta": 4.972917418898067, "roubo_rua": 439.5181424643733, "hom_por_interv_policial": 0.8775736621584825, "V": 3.422313500511953, "V_km2": 11.51084851997584, "V_mix": 7.466581010243896, "cisps": "9ª Catete, 10ª Botafogo, 11ª Rocinha, 12ª Copacabana, 13ª Ipanema, 14ª Leblon, 15ª Gávea"}, "Barra": {"pop": 187689.7064, "letalidade_violenta": 22.37735931585431, "roubo_rua": 664.9272482425281, "hom_por_interv_policial": 4.795148424825923, "V": 36.3089371461851, "V_km2": 1.0674097329288539, "V_mix": 18.688173439556977, "cisps": "16ª Barra da Tijuca"}, "Recreio": {"pop": 138490.5012, "letalidade_violenta": 35.38148795435221, "roubo_rua": 490.2863330817377, "hom_por_interv_policial": 6.498640644676937, "V": 55.07081335111989, "V_km2": 2.580320198013485, "V_mix": 28.82556677456669, "cisps": "42ª Recreio dos Bandeirantes"}, "Jacarepaguá": {"pop": 594773.2706500001, "letalidade_violenta": 36.56855657993917, "roubo_rua": 423.8589937380535, "hom_por_interv_policial": 11.516993681498082, "V": 67.32278737951775, "V_km2": 19.58143126423041, "V_mix": 43.452109321874076, "cisps": "32ª Taquara, 41ª Tanque, 28ª Campinho (½)"}, "Zona Oeste": {"pop": 1822918.7400999998, "letalidade_violenta": 17.49940866714117, "roubo_rua": 150.96668542938087, "hom_por_interv_policial": 2.0845690575277884, "V": 19.446480368910198, "V_km2": 1.2996682312256715, "V_mix": 10.373074300067934, "cisps": "33ª Realengo, 34ª Bangu, 35ª Campo Grande, 36ª Santa Cruz, 43ª Guaratiba"}, "Ilha": {"pop": 227783.9404, "letalidade_violenta": 20.63358809118222, "roubo_rua": 53.99853904713644, "hom_por_interv_policial": 2.6340750754700704, "V": 23.795137367930298, "V_km2": 7.61023999788655, "V_mix": 15.702688682908423, "cisps": "37ª Ilha do Governador"}}}, "N": 113, "meses": 10, "formulaB": {"Centro": {"q": 14.862814744861353, "b": 15}, "Leopoldina": {"q": 14.556163703476212, "b": 15}, "Norte/Tijuca": {"q": 14.302551610911795, "b": 14}, "Zona Sul": {"q": 9.775160059789888, "b": 10}, "Barra": {"q": 13.925913876891007, "b": 14}, "Recreio": {"q": 10.207808130465908, "b": 10}, "Jacarepaguá": {"q": 12.338072921683345, "b": 12}, "Zona Oeste": {"q": 15.758923847908688, "b": 16}, "Ilha": {"q": 7.272591104011802, "b": 7}}, "volume": {"Centro": {"q": 19.183951586824964, "b": 19}, "Leopoldina": {"q": 16.334808518501408, "b": 16}, "Norte/Tijuca": {"q": 16.82341202014136, "b": 17}, "Zona Sul": {"q": 11.615817434286505, "b": 12}, "Barra": {"q": 15.680205109253015, "b": 16}, "Recreio": {"q": 7.145304199196193, "b": 7}, "Jacarepaguá": {"q": 8.873164872730632, "b": 9}, "Zona Oeste": {"q": 14.574583083106203, "b": 14}, "Ilha": {"q": 2.7687531759597173, "b": 3}}, "ice": {"Centro": {"I": 1960.0, "FT": 1.0, "FR": 1.0666666666666667, "D": 0.09035079029052513, "q": 17.222014737951053, "b": 17}, "Leopoldina": {"I": 1921.1406212762822, "FT": 1.0834232887618047, "FR": 1.1333333333333333, "D": 0.288250462767088, "q": 16.88056739453907, "b": 17}, "Norte/Tijuca": {"I": 1793.1753311996995, "FT": 1.0432554753628636, "FR": 1.0666666666666667, "D": 0.19296295691908444, "q": 15.756169378393617, "b": 16}, "Zona Sul": {"I": 1164.5477446465318, "FT": 1.0466904050391264, "FR": 1.0, "D": 0.20111141843387012, "q": 10.232580827219504, "b": 10}, "Barra": {"I": 1623.6563996912782, "FT": 1.0810682466817219, "FR": 1.0, "D": 0.282663748754318, "q": 14.266650226965174, "b": 14}, "Recreio": {"I": 815.051080117944, "FT": 1.1164675447261434, "FR": 1.0666666666666667, "D": 0.36663921403349, "q": 7.161643731619468, "b": 7}, "Jacarepaguá": {"I": 1149.17916811618, "FT": 1.1267788054635646, "FR": 1.2, "D": 0.391099950993675, "q": 10.09754110706285, "b": 10}, "Zona Oeste": {"I": 2094.0, "FT": 1.25, "FR": 1.2, "D": 0.6834096213850952, "q": 18.39943819452526, "b": 19}, "Ilha": {"I": 339.53362114441796, "FT": 1.129670019777808, "FR": 1.1333333333333333, "D": 0.3979585917202717, "q": 2.983394401724008, "b": 3}}};
+const $ = s => document.querySelector(s);
+const A = DATA.ordem, AR = DATA.areas;
+const RET = {'Zona Sul':1,'Zona Oeste':1}; // aposentadorias ja requeridas (Zona Sul e Oeste 3/Bangu), sem reposicao
+const TESTE = 'Barra', ARR = 6; // area-teste na Barra; 6 arrecadadores passam as areas territoriais
+const N0 = A.reduce((s,k)=>s+AR[k].n,0), NR = N0-Object.values(RET).reduce((a,b)=>a+b,0), N1 = NR+1;
+let st = {wT:.25, wR:.20, band:.10, stab:true, model:'A', cen:117};
+const MC = {A:'--s-ice', B:'--s-isp'}, MN = {A:'Modelo A · notas dos OJs', B:'Modelo B · ISP-RJ'}, RK = {A:'risco', B:'riscoIsp'};
+function corr(x,y){const n=x.length,mx=x.reduce((a,b)=>a+b)/n,my=y.reduce((a,b)=>a+b)/n;let sxy=0,sx=0,sy=0;for(let i=0;i<n;i++){sxy+=(x[i]-mx)*(y[i]-my);sx+=(x[i]-mx)**2;sy+=(y[i]-my)**2;}return sxy/Math.sqrt(sx*sy);}
+const vnorm = m => {const v=A.map(k=>AR[k][RK[m]]),lo=Math.min(...v),hi=Math.max(...v);const o={};A.forEach(k=>o[k]=(AR[k][RK[m]]-lo)/(hi-lo)*100);return o;};
+const cPrazo = m => corr(A.map(k=>AR[k].prazo),A.map(k=>AR[k][RK[m]]));
+const fmt = (x,d=1) => x.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});
+const pct = x => (x>0?'+':'')+fmt(x*100,1)+'%';
+
+function hamilton(w,total){const s=Object.values(w).reduce((a,b)=>a+b,0);const q={},b={};for(const k in w){q[k]=total*w[k]/s;b[k]=Math.floor(q[k]);}
+  let r=total-Object.values(b).reduce((a,c)=>a+c,0);Object.keys(q).sort((x,y)=>(q[y]-b[y])-(q[x]-b[x])).slice(0,r).forEach(k=>b[k]++);return b;}
+function compute(model=st.model){
+  const D={},FT={},FR={},I={},rk=RK[model];
+  A.forEach(k=>D[k]=Math.sqrt(AR[k].km2/AR[k].mes));
+  const dmin=Math.min(...Object.values(D)),dmax=Math.max(...Object.values(D));
+  const rs=A.map(k=>AR[k][rk]),rmin=Math.min(...rs),rmax=Math.max(...rs);
+  A.forEach(k=>{FT[k]=1+st.wT*(D[k]-dmin)/(dmax-dmin);FR[k]=1+st.wR*(AR[k][rk]-rmin)/(rmax-rmin);I[k]=AR[k].mes*FT[k]*FR[k];});
+  const N=st.cen===117?NR+ARR:N1;
+  const tot=A.reduce((s,k)=>s+I[k],0),avg=tot/N,avg0=tot/N0,avg1=tot/N1;
+  const cur={},R={};A.forEach(k=>{cur[k]=AR[k].n;R[k]=cur[k]-(RET[k]||0);});
+  let meta;
+  if(st.stab){const keep=A.filter(k=>Math.abs(I[k]/R[k]/avg-1)<=st.band);const rest=N-keep.reduce((s,k)=>s+R[k],0);
+    const w={};A.filter(k=>!keep.includes(k)).forEach(k=>w[k]=I[k]);const b=Object.keys(w).length?hamilton(w,rest):{};meta={};A.forEach(k=>meta[k]=keep.includes(k)?R[k]:b[k]);}
+  else meta=hamilton(I,N);
+  const pure=hamilton(I,N),vol=hamilton(Object.fromEntries(A.map(k=>[k,AR[k].mes])),N);
+  // Fase 1: area-teste na Barra + remanejamento dos excedentes para a area de maior carga por OJ; Fase 2: demais arrecadadores
+  const f1={};A.forEach(k=>f1[k]=Math.min(R[k],meta[k]));
+  const teste=f1[TESTE]<meta[TESTE]?1:0;f1[TESTE]+=teste;
+  let out=0;A.forEach(k=>{if(R[k]>meta[k])out+=R[k]-meta[k];});
+  const fill={},nom={};let left=out;
+  while(left>0){let best=null,bv=-1;A.forEach(k=>{if(f1[k]<meta[k]){const v=I[k]/f1[k];if(v>bv){bv=v;best=k;}}});if(!best)break;f1[best]++;fill[best]=(fill[best]||0)+1;left--;}
+  A.forEach(k=>{if(f1[k]<meta[k])nom[k]=meta[k]-f1[k];});
+  return {model,N,D,FT,FR,I,avg,avg0,avg1,cur,R,meta,pure,vol,out,fill,nom,f1,teste};
+}
+function tip(e,html){const t=$('#tip');if(!html){t.style.display='none';return;}t.innerHTML=html;t.style.display='block';
+  const x=Math.min(e.clientX+14,innerWidth-270),y=Math.min(e.clientY+14,innerHeight-t.offsetHeight-8);t.style.left=x+'px';t.style.top=y+'px';}
+function bindTips(el){el.querySelectorAll('[data-tip]').forEach(n=>{n.addEventListener('mousemove',e=>tip(e,n.dataset.tip));n.addEventListener('mouseleave',e=>tip(e,null));});}
+
+function chart1(r,el='#c1'){const mc=`var(${MC[r.model]})`;
+  const W=900,rowH=34,top=28,left=120,right=30,H=top+A.length*rowH+24;
+  const lo=-0.40,hi=0.40,x=v=>left+(Math.max(lo,Math.min(hi,v))-lo)/(hi-lo)*(W-left-right);
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Desvio de carga por área">`;
+  s+=`<rect x="${x(-st.band)}" y="${top-8}" width="${x(st.band)-x(-st.band)}" height="${A.length*rowH+4}" fill="var(--band)"/>`;
+  for(let v=-0.4;v<=0.401;v+=0.1){s+=`<line x1="${x(v)}" x2="${x(v)}" y1="${top-8}" y2="${top+A.length*rowH-4}" stroke="${Math.abs(v)<1e-9?'var(--muted)':'var(--grid)'}" stroke-width="1"/><text x="${x(v)}" y="${top-12}" text-anchor="middle">${(v>0?'+':'')+Math.round(v*100)}%</text>`;}
+  A.forEach((k,i)=>{const y=top+i*rowH+rowH/2-4;const a=r.I[k]/r.cur[k]/r.avg0-1,b=r.I[k]/r.meta[k]/r.avg-1;
+    s+=`<text class="lbl" x="${left-10}" y="${y+4}" text-anchor="end">${k}</text>`;
+    s+=`<line x1="${x(a)}" x2="${x(b)}" y1="${y}" y2="${y}" stroke="var(--muted)" stroke-width="2"/>`;
+    s+=`<circle cx="${x(a)}" cy="${y}" r="6" fill="var(--s-atual)" stroke="var(--surface)" stroke-width="2"/>`;
+    s+=`<circle cx="${x(b)}" cy="${y}" r="6" fill="${mc}" stroke="var(--surface)" stroke-width="2"/>`;
+    const lx=Math.max(x(a),x(b))+12;s+=`<text x="${Math.min(lx,W-60)}" y="${y+4}">${pct(a)} → ${pct(b)}</text>`;
+    s+=`<rect class="hit" x="0" y="${y-rowH/2}" width="${W}" height="${rowH}" data-tip="<b>${k}</b> · ${MN[r.model]}<br>Hoje: ${r.cur[k]} OJs, ${fmt(r.I[k]/r.cur[k])} mand.-equiv./OJ (${pct(a)})<br>Meta: ${r.meta[k]} OJs, ${fmt(r.I[k]/r.meta[k])} mand.-equiv./OJ (${pct(b)})<br>Mandados brutos/OJ/mês: ${fmt(AR[k].mes/r.cur[k])} → ${fmt(AR[k].mes/r.meta[k])}"/>`;});
+  s+=`<text x="${x(-0.38)}" y="${H-4}">← com folga</text><text x="${x(0.38)}" y="${H-4}" text-anchor="end">sobrecarregada →</text></svg>`;
+  $(el).innerHTML=s;bindTips($(el));
+}
+function chart2(r,el='#c2'){
+  const W=560,H=300,top=14,left=34,bot=56,right=8;const ser=[['Atual','--s-atual',k=>r.cur[k]],['Meta '+MN[r.model],MC[r.model],k=>r.meta[k]],['Proposta B','--s-b',k=>AR[k].propB],['Só volume','--s-vol',k=>r.vol[k]]];
+  const max=20,y=v=>top+(1-v/max)*(H-top-bot),gw=(W-left-right)/A.length,bw=(gw-10)/4;
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="OJs por área">`;
+  for(let v=0;v<=max;v+=5){s+=`<line x1="${left}" x2="${W-right}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)"/><text x="${left-6}" y="${y(v)+4}" text-anchor="end">${v}</text>`;}
+  A.forEach((k,i)=>{const gx=left+i*gw+5;ser.forEach((sr,j)=>{const v=sr[2](k);const bx=gx+j*bw+1,by=y(v),h=y(0)-by;
+      s+=`<path d="M${bx},${y(0)} V${by+3} q0,-3 3,-3 h${bw-8} q3,0 3,3 V${y(0)} Z" fill="var(${sr[1]})" data-tip="<b>${k}</b><br>${sr[0]}: ${v} OJs"/>`;});
+    s+=`<text x="${gx+gw/2-5}" y="${H-bot+16}" text-anchor="end" transform="rotate(-35 ${gx+gw/2-5} ${H-bot+16})" class="lbl">${k}</text>`;});
+  s+=`<line x1="${left}" x2="${W-right}" y1="${y(0)}" y2="${y(0)}" stroke="var(--muted)"/></svg>`;
+  $(el).innerHTML=s;bindTips($(el));
+}
+function chartV(el='#c4'){
+  const W=620,rowH=30,top=26,left=110,right=20,H=top+A.length*rowH+6;const x=v=>left+v/100*(W-left-right);
+  const nA=vnorm('A'),nB=vnorm('B');
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Posição das áreas no índice de violência, modelos A e B">`;
+  for(let v=0;v<=100;v+=25){s+=`<line x1="${x(v)}" x2="${x(v)}" y1="${top-6}" y2="${H-6}" stroke="var(--grid)"/><text x="${x(v)}" y="${top-11}" text-anchor="middle">${v}</text>`;}
+  A.forEach((k,i)=>{const y=top+i*rowH+rowH/2-2,a=nA[k],b=nB[k];
+    s+=`<text class="lbl" x="${left-10}" y="${y+4}" text-anchor="end">${k}</text>`;
+    s+=`<line x1="${x(a)}" x2="${x(b)}" y1="${y}" y2="${y}" stroke="var(--muted)" stroke-width="2"/>`;
+    s+=`<circle cx="${x(a)}" cy="${y}" r="6" fill="var(--s-ice)" stroke="var(--surface)" stroke-width="2"/>`;
+    s+=`<circle cx="${x(b)}" cy="${y}" r="6" fill="var(--s-isp)" stroke="var(--surface)" stroke-width="2"/>`;
+    s+=`<rect class="hit" x="0" y="${y-rowH/2}" width="${W}" height="${rowH}" data-tip="<b>${k}</b><br>Modelo A: nota ${AR[k].risco} (posição ${fmt(a,0)})<br>Modelo B: ISP ${fmt(AR[k].riscoIsp)} (posição ${fmt(b,0)})"/>`;});
+  s+=`</svg>`;$(el).innerHTML=s;bindTips($(el));
+}
+function chartAB(rA,rB,el='#c5'){
+  const W=620,H=280,top=22,left=34,bot=56,right=8;const ser=[['Atual','--s-atual',k=>rA.cur[k]],['Meta Modelo A','--s-ice',k=>rA.meta[k]],['Meta Modelo B','--s-isp',k=>rB.meta[k]]];
+  const max=20,y=v=>top+(1-v/max)*(H-top-bot),gw=(W-left-right)/A.length,bw=(gw-12)/3;
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Lotação atual e metas dos modelos A e B">`;
+  for(let v=0;v<=max;v+=5){s+=`<line x1="${left}" x2="${W-right}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)"/><text x="${left-6}" y="${y(v)+4}" text-anchor="end">${v}</text>`;}
+  A.forEach((k,i)=>{const gx=left+i*gw+6;ser.forEach((sr,j)=>{const v=sr[2](k);const bx=gx+j*bw+1,by=y(v);
+      s+=`<path d="M${bx},${y(0)} V${by+3} q0,-3 3,-3 h${bw-8} q3,0 3,3 V${y(0)} Z" fill="var(${sr[1]})" data-tip="<b>${k}</b><br>${sr[0]}: ${v} OJs"/>`;});
+    if(rA.meta[k]!==rB.meta[k]){const d=rB.meta[k]-rA.meta[k];s+=`<text x="${gx+1.5*bw}" y="${y(Math.max(rA.meta[k],rB.meta[k],rA.cur[k]))-6}" text-anchor="middle" class="lbl" style="font-weight:700">B ${d>0?'+':'−'}${Math.abs(d)}</text>`;}
+    s+=`<text x="${gx+gw/2-6}" y="${H-bot+16}" text-anchor="end" transform="rotate(-35 ${gx+gw/2-6} ${H-bot+16})" class="lbl">${k}</text>`;});
+  s+=`<line x1="${left}" x2="${W-right}" y1="${y(0)}" y2="${y(0)}" stroke="var(--muted)"/></svg>`;
+  $(el).innerHTML=s;bindTips($(el));
+}
+function chart3(){
+  const W=560,rowH=28,top=22,left=100,right=14,H=top+A.length*rowH+8,max=320;const x=v=>left+v/max*(W-left-right);
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Mandados por OJ">`;
+  for(let v=0;v<=max;v+=50){s+=`<line x1="${x(v)}" x2="${x(v)}" y1="${top-6}" y2="${H-8}" stroke="var(--grid)"/><text x="${x(v)}" y="${top-10}" text-anchor="middle">${v}</text>`;}
+  A.forEach((k,i)=>{const y=top+i*rowH+rowH/2-2;const m=AR[k].mes/AR[k].n;s+=`<text class="lbl" x="${left-8}" y="${y+4}" text-anchor="end">${k}</text>`;
+    AR[k].ojs.forEach((v,j)=>{s+=`<circle cx="${x(v)}" cy="${y+((j%3)-1)*4}" r="4.5" fill="var(--s-ice)" fill-opacity=".75" stroke="var(--surface)" stroke-width="1.5" data-tip="<b>${k}</b><br>OJ ${j+1}: ${fmt(v)} mandados/mês<br>Média da área: ${fmt(m)}"/>`;});
+    s+=`<line x1="${x(m)}" x2="${x(m)}" y1="${y-10}" y2="${y+10}" stroke="var(--ink)" stroke-width="2"/>`;});
+  s+=`</svg>`;$('#c3').innerHTML=s;bindTips($('#c3'));
+}
+function table(r){
+  $('#h3').textContent='Quadro de cálculo por área · '+MN[r.model];
+  let h=`<tr><th>Área</th><th>OJs hoje</th><th>Após aposent.</th><th>Mand./mês</th><th>km²</th><th>D</th><th>FT</th><th>V</th><th>FEV</th><th>ICE</th><th>Desvio hoje</th><th>Meta</th><th>Δ</th><th>Desvio meta</th><th>Mand./OJ/mês meta</th></tr>`;
+  A.forEach(k=>{const a=r.I[k]/r.cur[k]/r.avg0-1,b=r.I[k]/r.meta[k]/r.avg-1,d=r.meta[k]-r.R[k];
+    h+=`<tr><td>${k}</td><td>${r.cur[k]}</td><td>${r.R[k]}</td><td>${fmt(AR[k].mes,0)}</td><td>${AR[k].km2}</td><td>${fmt(r.D[k],3)}</td><td>${fmt(r.FT[k],3)}</td><td>${r.model==='A'?AR[k].risco:fmt(AR[k].riscoIsp)}</td><td>${fmt(r.FR[k],3)}</td><td>${fmt(r.I[k],0)}</td>
+    <td class="${Math.abs(a)>st.band?(a>0?'pos':'neg'):''}">${pct(a)}</td><td>${r.meta[k]}</td><td>${d>0?'+'+d:d}</td><td class="${Math.abs(b)>st.band?(b>0?'pos':'neg'):''}">${pct(b)}</td><td>${fmt(AR[k].mes/r.meta[k])}</td></tr>`;});
+  $('#tb').innerHTML=h;
+  const f=Object.entries(r.fill).map(([k,v])=>`${k} +${v}`).join(', ')||'nenhuma',n=Object.entries(r.nom).map(([k,v])=>`${k} +${v}`).join(', ')||'nenhuma';
+  const sai=A.filter(k=>r.R[k]>r.meta[k]).map(k=>`${k} −${r.R[k]-r.meta[k]}`).join(', ')||'nenhuma';
+  $('#mv').innerHTML=`<b>Transição (${r.N} OJs).</b> Após as 2 aposentadorias já requeridas, sem reposição (Zona Sul e Zona Oeste/Bangu): ${NR} OJs. <b>Fase 1 (teste):</b> área-teste na Barra${r.teste?' (+1)':''} e <b>${r.out}</b> movimentações internas (saem ${sai}; entram ${f}), total de ${N1}. `
+    +(r.N>N1?`<b>Fase 2 (2027, se o teste for aprovado):</b> ${r.N-N1} arrecadadores para ${n}. `:`Sem a transferência dos demais arrecadadores (contingência), a meta já se completa na Fase 1${n!=='nenhuma'?'; faltam '+n:''}. `)
+    +`Δ = meta − lotação após as aposentadorias. As 2 aposentadorias da Ilha previstas para o final de 2027 seguem a sucessão planejada da Fase 3.`;
+}
+function depara(r){
+  $('#hd').textContent='Em mandados reais: quanto cada OJ recebe · '+MN[r.model]+' · '+r.N+' OJs';
+  let h='<tr><th>Área</th><th>1 mandado vale (mand.-equiv.)</th><th>Mandados/mês da área</th><th>OJs hoje</th><th>Mand./OJ hoje</th><th>Referência (mand./OJ)</th><th>OJs na meta</th><th>Mand./OJ na meta</th></tr>';
+  A.forEach(k=>{const f=r.FT[k]*r.FR[k],M=AR[k].mes;
+    h+=`<tr><td>${k}</td><td>${fmt(f,2)}</td><td>${fmt(M,0)}</td><td>${r.cur[k]}</td><td>${fmt(M/r.cur[k],0)}</td><td><b>${fmt(r.avg/f,0)}</b></td><td>${r.meta[k]}</td><td><b>${fmt(M/r.meta[k],0)}</b></td></tr>`;});
+  const T=A.reduce((s,k)=>s+AR[k].mes,0);
+  h+=`<tr><td><b>Capital</b></td><td>–</td><td>${fmt(T,0)}</td><td>${N0}</td><td>${fmt(T/N0,0)}</td><td>–</td><td>${r.N}</td><td>${fmt(T/r.N,0)}</td></tr>`;
+  $('#td').innerHTML=h;
+}
+function kpis(r){
+  const a=A.map(k=>r.I[k]/r.cur[k]/r.avg0-1),b=A.map(k=>r.I[k]/r.meta[k]/r.avg-1);
+  const out=x=>A.filter((k,i)=>Math.abs(x[i])>st.band).length;
+  $('#kpis').innerHTML=[
+    ['Amplitude do desvio hoje',`${pct(Math.min(...a))} a ${pct(Math.max(...a))}`,`${out(a)} de 9 áreas fora da faixa de ±${Math.round(st.band*100)}%`],
+    ['Amplitude com a meta '+r.model,`${pct(Math.min(...b))} a ${pct(Math.max(...b))}`,`${out(b)} de 9 áreas fora da faixa`],
+    ['OJs que mudam de área',`${r.out}`,`os outros ${r.N-NR} postos vêm dos arrecadadores; total de ${r.N} OJs`],
+    ['Carga média por OJ',`${fmt(r.avg)} mand.-equivalentes`,`= ${fmt(r.avg/(r.FT['Zona Sul']*r.FR['Zona Sul']),0)} mandados/mês na Zona Sul ou ${fmt(r.avg/(r.FT['Zona Oeste']*r.FR['Zona Oeste']),0)} na Zona Oeste (média bruta: ${fmt(A.reduce((s,k)=>s+AR[k].mes,0)/r.N)})`]
+  ].map(([l,v,s])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('');
+}
+function props(){
+  const P=[
+   ['A1','Cumprimento do art. 2º do Ato 141/2025 (comunicação eletrônica antes do mandado)','ok','Acolher','Dever normativo; reduz demanda de todos'],
+   ['A2','Arrecadação assumir mandados pecuniários (créditos, aluguéis)','part','Prejudicada','Nova diretriz: arrecadação feita por todos os OJs, no território, sob controle da DICAJ'],
+   ['A3','OJ receber indenização de transporte do colega em férias','no','Não acolher','Indenização é pessoal e depende do serviço externo próprio (arts. 30–31)'],
+   ['A4','Cumprimento do art. 5º, §4º (intimação prévia na condução coercitiva)','ok','Acolher','Dever normativo das Varas'],
+   ['A5','Ajustar Jacarepaguá; teto de 100 mandados/OJ/mês','part','Acolher no mérito','+2 OJs dão cerca de 85/mês; o teto fixo dá lugar à faixa ±10%'],
+   ['A6','Chamar OJs ou remanejar de áreas ociosas','ok','Acolher','Núcleo da proposta: Zona Sul cede postos; arrecadadores completam as áreas'],
+   ['B','Índice 60/25/15 (participações somadas)','part','Aproveitar a ideia','Soma de participações infla áreas pequenas (Ilha 7 pela fórmula)'],
+   ['C','ICT multiplicativo (UTP × fator área × intensidade)','part','Adotar a estrutura','Distância da residência e tempo médio saem do dimensionamento'],
+   ['D','Tabela de extensão territorial (km²/OJ)','ok','Adotar como dado','Validar a área urbanizada com o IPP']];
+  let h='<tr><th>#</th><th>Proposta</th><th>Encaminhamento</th><th>Razão principal</th></tr>';
+  P.forEach(p=>{h+=`<tr><td>${p[0]}</td><td style="white-space:normal;text-align:left">${p[1]}</td><td><span class="tag ${p[2]}">${p[2]==='ok'?'✓':p[2]==='no'?'✕':'◐'} ${p[3]}</span></td><td style="white-space:normal;text-align:left">${p[4]}</td></tr>`;});
+  $('#tp').innerHTML=h;
+}
+function compare(rA,rB){
+  const nA=vnorm('A'),nB=vnorm('B');
+  let h='<tr><th>Área</th><th>Após aposent.</th><th>Nota OJs (A)</th><th>ISP (B)</th><th>Posição A</th><th>Posição B</th><th>Meta A</th><th>Meta B</th><th>B − A</th></tr>';
+  A.forEach(k=>{const d=rB.meta[k]-rA.meta[k];h+=`<tr><td>${k}</td><td>${rA.R[k]}</td><td>${AR[k].risco}</td><td>${fmt(AR[k].riscoIsp)}</td><td>${fmt(nA[k],0)}</td><td>${fmt(nB[k],0)}</td><td>${rA.meta[k]}</td><td>${rB.meta[k]}</td><td class="${d>0?'pos':d<0?'neg':''}">${d>0?'+'+d:d===0?'–':'−'+(-d)}</td></tr>`;});
+  $('#tc').innerHTML=h;
+  $('#cc').innerHTML=`Correlação entre o prazo médio de cumprimento da área e o índice V: <b>Modelo A ${fmt(cPrazo('A'),2)}</b> · <b>Modelo B ${fmt(cPrazo('B'),2)}</b>. OJs que mudam de área: A ${rA.out} · B ${rB.out} (total de ${rA.N} OJs).`;
+}
+function annex(){
+  $('#isub').textContent=`Fonte: ISP-RJ, base mensal por circunscrição policial (CISP), ${DATA.isp.periodo}; população de referência ${DATA.isp.pop_ref}. Índice composto = média das versões por habitante e por km².`;
+  let h='<tr><th>Área</th><th>População</th><th>Letalidade violenta</th><th>Roubos de rua</th><th>MIP</th><th>V por hab.</th><th>V por km²</th><th>V composto (B)</th><th>Delegacias (CISP)</th></tr>';
+  A.forEach(k=>{const v=DATA.isp.areas[k];h+=`<tr><td>${k}</td><td>${fmt(v.pop,0)}</td><td>${fmt(v.letalidade_violenta)}</td><td>${fmt(v.roubo_rua,0)}</td><td>${fmt(v.hom_por_interv_policial)}</td><td>${fmt(v.V)}</td><td>${fmt(v.V_km2)}</td><td><b>${fmt(v.V_mix)}</b></td><td class="wrap">${v.cisps}</td></tr>`;});
+  $('#ti').innerHTML=h;
+}
+function render(){$('#oT').textContent=Math.round(st.wT*100)+'%';$('#oR').textContent=Math.round(st.wR*100)+'%';$('#oB').textContent=Math.round(st.band*100)+'%';
+  const rA=compute('A'),rB=compute('B'),r=st.model==='A'?rA:rB,mc=`var(${MC[st.model]})`;
+  $('#mbar').style.setProperty('--mc',mc);
+  $('#mbar').innerHTML=st.model==='A'
+    ?`<b>Modelo A · notas dos OJs (padrão).</b> O índice V usa as notas de violência que os OJs atribuíram a cada área no Documento B (escala 20–100). É o modelo que melhor acompanha o tempo de cumprimento (correlação de ${fmt(cPrazo('A'),2)} com o prazo médio) e capta o domínio territorial armado, que a estatística policial registra mal. Ponto fraco: as notas são subjetivas e atribuídas pela própria categoria.`
+    :`<b>Modelo B · ISP-RJ (alternativo).</b> O índice V usa a estatística oficial do ISP-RJ por delegacia (${DATA.isp.periodo}): letalidade violenta 40%, roubos de rua 30%, mortes por intervenção de agente do Estado 30%, como média das taxas por habitante e por km². Fonte pública, neutra e auditável. Pontos fracos: correlação de só ${fmt(cPrazo('B'),2)} com o prazo médio, subnotificação em áreas de milícia e limites das delegacias diferentes dos das áreas.`;
+  $('#h1').textContent='Desvio da carga por OJ em relação à média: hoje e com a meta · '+MN[st.model];
+  $('#lg1').innerHTML=`<span><i style="background:var(--s-atual)"></i>Hoje</span><span><i style="background:${mc}"></i>Meta ${MN[st.model]}</span><span><i style="background:var(--band);border:1px solid var(--green)"></i>Faixa de equilíbrio</span>`;
+  $('#lg2').innerHTML=`<span><i style="background:var(--s-atual)"></i>Atual</span><span><i style="background:${mc}"></i>Meta ${MN[st.model]}</span><span><i style="background:var(--s-b)"></i>Proposta B (quadro apresentado)</span><span><i style="background:var(--s-vol)"></i>Só volume</span>`;
+  kpis(r);chart1(r);chart2(r);table(r);depara(r);chartV();chartAB(rA,rB);compare(rA,rB);}
+$('#wT').oninput=e=>{st.wT=e.target.value/100;render();};
+$('#wR').oninput=e=>{st.wR=e.target.value/100;render();};
+$('#band').oninput=e=>{st.band=e.target.value/100;render();};
+document.querySelectorAll('#model button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#model button').forEach(x=>x.classList.toggle('on',x===b));st.model=b.dataset.v;render();});
+document.querySelectorAll('#cen button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#cen button').forEach(x=>x.classList.toggle('on',x===b));st.cen=+b.dataset.v;render();});
+document.querySelectorAll('#stab button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#stab button').forEach(x=>x.classList.toggle('on',x===b));st.stab=b.dataset.v==='1';render();});
+document.querySelectorAll('#theme button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#theme button').forEach(x=>x.classList.toggle('on',x===b));
+  if(b.dataset.v==='auto')document.documentElement.removeAttribute('data-theme');else document.documentElement.setAttribute('data-theme',b.dataset.v);});
+chart3();props();annex();render();
+</script>
+</body>
+</html>
